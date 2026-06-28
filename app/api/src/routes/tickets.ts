@@ -2,10 +2,11 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
+import { ticketLimiter } from "../middleware/rateLimiter";
 
 export const ticketsRouter = Router()
 
-ticketsRouter.post('/', authMiddleware, async (req: AuthRequest, res) => {
+ticketsRouter.post('/', ticketLimiter, authMiddleware, async (req: AuthRequest, res) => {
     const { eventId } = req.body as { eventId: string }
     const userId = req.userId
 
