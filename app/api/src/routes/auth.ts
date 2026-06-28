@@ -2,10 +2,11 @@ import { Router } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
+import { authLimiter } from "../middleware/rateLimiter";
 
 export const authRouter = Router()
 
-authRouter.post('/register', async (req, res) => {
+authRouter.post('/register', authLimiter, async (req, res) => {
     const { email, password } = req.body as { email: string; password: string }
 
     const existing = await prisma.user.findUnique({ where: { email } })
@@ -20,7 +21,7 @@ authRouter.post('/register', async (req, res) => {
     res.status(201).json({ id: user.id, email: user.email })
 })
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', authLimiter, async (req, res) => {
     const { email, password } = req.body as { email: string; password: string }
 
     const user = await prisma.user.findUnique({ where: { email } })

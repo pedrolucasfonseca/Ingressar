@@ -2,16 +2,17 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
+import { publicLimiter } from "../middleware/rateLimiter";
 
 export const eventsRouter = Router()
 
-eventsRouter.get('/', async (_req, res) => {
+eventsRouter.get('/', publicLimiter, async (_req, res) => {
     const events = await prisma.event.findMany({ orderBy: { date: 'asc' } })
     res.json(events)
 })
 
-eventsRouter.get('/:id', async (req, res) => {
-    const event = await prisma.event.findUnique({ where: { id: req.params['id'] } })
+eventsRouter.get('/:id', publicLimiter, async (req, res) => {
+    const event = await prisma.event.findUnique({ where: { id: req.params['id'] as string } })
     if (!event) {
         res.status(404).json({ error: 'Evento não encontrado' })
         return
