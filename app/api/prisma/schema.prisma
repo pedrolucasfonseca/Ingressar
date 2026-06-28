@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  password    String
+  tickets     Ticket[]
+  createdAt   DateTime  @default(now())
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  price       Int       //centavos
+  date        DateTime
+  capacity    Int
+  tickets     Ticket[]
+  createdAt   DateTime  @default(now())
+}
+
+model Ticket {
+  id          String    @id @default(cuid())
+  userId      String
+  eventId     String
+  // onDelete padrão (RESTRICT) — impede deleção de usuário ou evento com ingressos,
+  // preservando o histórico de compras para auditoria.
+  user        User      @relation(fields: [userId], references: [id])
+  event       Event     @relation(fields: [eventId], references: [id])
+  createdAt   DateTime  @default(now())
+}
