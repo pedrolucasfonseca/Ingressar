@@ -6,32 +6,95 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  organizer
+  buyer
+}
+
+enum EventStatus {
+  draft
+  published
+  cancelled
+  finished
+}
+
+enum TicketStatus {
+  pending
+  confirmed
+  cancelled
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
 model User {
-  id          String    @id @default(cuid())
-  email       String    @unique
-  password    String
-  tickets     Ticket[]
-  createdAt   DateTime  @default(now())
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  passwordHash        String
+  tickets             Ticket[]
+  createdAt           DateTime             @default(now())
+  name                String
+  role                Role                 @default(buyer)
+  events              Event[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Event {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   title       String
   description String
-  price       Int       //centavos
+  priceCents  Int
   date        DateTime
+  location    String
   capacity    Int
   tickets     Ticket[]
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime    @default(now())
+  status      EventStatus @default(draft)
+  organizerId String
+  organizer   User        @relation(fields: [organizerId], references: [id])
+  updatedAt   DateTime    @updatedAt
+  @@index([status])
+  @@index([organizerId])
 }
 
+// onDelete padrão (RESTRICT) impede deleção de usuário ou evento com ingressos, preservando o histórico de compras para auditoria.
 model Ticket {
-  id          String    @id @default(cuid())
-  userId      String
-  eventId     String
-  // onDelete padrão (RESTRICT) — impede deleção de usuário ou evento com ingressos,
-  // preservando o histórico de compras para auditoria.
-  user        User      @relation(fields: [userId], references: [id])
-  event       Event     @relation(fields: [eventId], references: [id])
-  createdAt   DateTime  @default(now())
+  id        String       @id @default(cuid())
+  userId    String
+  eventId   String
+  user      User         @relation(fields: [userId], references: [id])
+  event     Event        @relation(fields: [eventId], references: [id])
+  createdAt DateTime     @default(now())
+  status    TicketStatus @default(pending)
+  qrCode    String?
+  payment   Payment?
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  ticketId          String        @unique
+  ticket            Ticket        @relation(fields: [ticketId], references: [id])
+  providerPaymentId String
+  provider          String        @default("stripe")
+  status            PaymentStatus @default(pending)
+  amountCents       Int
+  createdAt         DateTime      @default(now())
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
