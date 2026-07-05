@@ -1,14 +1,24 @@
 import { Router } from "express";
+import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { authMiddleware } from "../middleware/auth";
+import { authMiddleware, requireRole } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
-import { ticketLimiter } from "../middleware/rateLimiter";
+import { ticketLimiter, publicLimiter } from "../middleware/rateLimiter";
 
 export const ticketsRouter = Router()
 
-ticketsRouter.post('/', ticketLimiter, authMiddleware, async (req: AuthRequest, res) => {
-    const { eventId } = req.body as { eventId: string }
-    const userId = req.userId
+const CreateTicketSchema = z.object({
+    eventId: z.string().min(1),
+})
+
+ticketsRouter.post('/', ticketLimiter, authMiddleware, requireRole('buyer'), async (req: AuthRequest, res) => {
+    const parsed = CreateTicketSchema.safeParse(req.body)
+    if (!parsed.success) {
+        res.status(400).json({ error: parsed.error.flatten() })
+        return
+    }
+    const { eventId } = parsed.data
+    const userId = req.user?.id
 
     if (!userId) {
         res.status(401).json({ error: 'Não autenticado' })
@@ -27,8 +37,8 @@ ticketsRouter.post('/', ticketLimiter, authMiddleware, async (req: AuthRequest, 
     res.status(201).json(ticket)
 })
 
-ticketsRouter.get('/mine', authMiddleware, async (req: AuthRequest, res) => {
-    const userId = req.userId
+ticketsRouter.get('/mine', publicLimiter, authMiddleware, async (req: AuthRequest, res) => {
+    const userId = req.user?.id
 
     if (!userId) {
         res.status(401).json({ error: 'Não autenticado' })

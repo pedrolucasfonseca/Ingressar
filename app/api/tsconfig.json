@@ -39,6 +39,9 @@
   "exclude": [
     "node_modules",
     "dist",
-    "prisma.config.ts"
+    "prisma.config.ts",
+    "tests",
+    "jest.config.ts",
+    "tsconfig.test.json"
   ]
 }

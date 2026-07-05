@@ -4,7 +4,7 @@ Plataforma de venda de ingressos para eventos, conectando organizadores e compra
 
 ## Status atual
 
-MVP em andamento — autenticação (com roles organizer/buyer), cadastro de eventos e compra de ingressos funcionando. Rate limiting aplicado nas rotas públicas e autenticadas. Frontend ainda não implementado; schema de pagamentos e reset de senha modelados, integração pendente.
+MVP em andamento — autenticação com roles (organizer/buyer), refresh token (access 15min em memória + refresh cookie httpOnly 7d), RBAC (`requireRole`, `requireEventOwner`), logout, reset de senha, validação de input com Zod e rate limiting aplicados nas rotas públicas e autenticadas. Testes unitários e de integração cobrindo autenticação e autorização. Frontend ainda não implementado; integração com Stripe pendente.
 
 ## Stack
 
@@ -13,7 +13,8 @@ MVP em andamento — autenticação (com roles organizer/buyer), cadastro de eve
 | Backend | Node.js 20 + Express 5 + TypeScript |
 | Banco de dados | PostgreSQL 16 |
 | ORM | Prisma 7 (adapter nativo pg) |
-| Autenticação | JWT + bcrypt |
+| Autenticação | JWT (access + refresh) + bcrypt |
+| Testes | Jest + Supertest + jest-mock-extended |
 | Pagamentos | Stripe (instalado, integração pendente) |
 | Infraestrutura | Docker Compose (dev) / Kubernetes (prod) |
 
@@ -42,15 +43,31 @@ A API estará disponível em `http://localhost:3001`.
 
 | Método | Rota | Auth | Descrição |
 |---|---|---|---|
+| GET | `/status` | — | Health check |
 | POST | `/auth/register` | — | Cadastro de usuário (role: buyer por padrão) |
-| POST | `/auth/login` | — | Login, retorna JWT |
+| POST | `/auth/login` | — | Login — retorna `accessToken` (15min) e seta cookie httpOnly com refresh token (7d) |
+| POST | `/auth/refresh` | Cookie | Renova o access token usando o refresh token |
+| POST | `/auth/logout` | JWT | Encerra a sessão (limpa o cookie de refresh token) |
+| POST | `/auth/forgot-password` | — | Gera um token de redefinição de senha (válido por 1h, uso único) |
+| POST | `/auth/reset-password` | — | Redefine a senha a partir de um token válido |
 | GET | `/events` | — | Lista todos os eventos |
 | GET | `/events/:id` | — | Detalhes de um evento |
-| POST | `/events` | JWT | Cria um evento (requer role organizer) |
-| POST | `/tickets` | JWT | Compra um ingresso |
+| POST | `/events` | JWT (organizer) | Cria um evento |
+| PATCH | `/events/:id` | JWT (organizer, dono) | Edita título, descrição ou local de um evento |
+| POST | `/tickets` | JWT (buyer) | Compra um ingresso |
 | GET | `/tickets/mine` | JWT | Ingressos do usuário logado |
 
-Envie o token nas requisições autenticadas via header `Authorization: Bearer <token>`.
+Envie o access token nas requisições autenticadas via header `Authorization: Bearer <token>`.
+
+## Testes
+
+```bash
+cd app/api
+npm run test:unit          # mocks — não precisa de banco
+
+docker compose -f ../../compose.test.yml up -d   # banco de teste isolado (porta 5433)
+npm run test:integration
+```
 
 ## Modelos principais
 
@@ -66,9 +83,15 @@ Envie o token nas requisições autenticadas via header `Authorization: Bearer <
 app/
   api/
     prisma/            # schema e migrations
+    tests/
+      unit/            # testes unitários (Prisma mockado)
+      integration/     # testes de integração (banco de teste real)
     src/
-      lib/             # cliente Prisma
-      middleware/      # autenticação JWT e rate limiting
+      app.ts           # monta o Express app (usado pelos testes)
+      index.ts         # inicia o servidor
+      lib/             # cliente Prisma, tokens JWT, email (stub)
+      middleware/      # autenticação JWT, RBAC (requireRole/requireEventOwner) e rate limiting
       routes/          # auth, events, tickets
-docker-compose.yml     # banco local
+docker-compose.yml     # banco de dev
+compose.test.yml       # banco de teste (integration)
 ```
