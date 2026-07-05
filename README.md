@@ -29,7 +29,7 @@ docker compose up -d
 
 # 2. Instale dependências e rode as migrations
 cd app/api
-cp .env.example .env   # preencha DATABASE_URL e JWT_SECRET
+cp .env.example .env   # preencha DATABASE_URL, JWT_SECRET e JWT_REFRESH_SECRET
 npm install
 npx prisma migrate dev
 
@@ -58,6 +58,15 @@ A API estará disponível em `http://localhost:3001`.
 | GET | `/tickets/mine` | JWT | Ingressos do usuário logado |
 
 Envie o access token nas requisições autenticadas via header `Authorization: Bearer <token>`.
+
+## Especificação da API (OpenAPI)
+
+```bash
+cd app/api
+npm run docs:openapi   # gera app/api/openapi.json
+```
+
+A spec é gerada a partir dos mesmos schemas Zod usados nas rotas (`src/routes/*.ts` + `src/openapi/`) — não é mantida à mão, então não diverge do código como a tabela de endpoints acima pode divergir com o tempo. Importe o `openapi.json` gerado no Swagger UI, Postman ou Insomnia para explorar a API interativamente.
 
 ## Testes
 

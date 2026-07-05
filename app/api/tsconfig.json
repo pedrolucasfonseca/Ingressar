@@ -42,6 +42,7 @@
     "prisma.config.ts",
     "tests",
     "jest.config.ts",
-    "tsconfig.test.json"
+    "tsconfig.test.json",
+    "scripts"
   ]
 }

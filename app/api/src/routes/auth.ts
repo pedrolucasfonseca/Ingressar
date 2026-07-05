@@ -10,22 +10,22 @@ import { sendPasswordResetEmail } from "../lib/email";
 
 export const authRouter = Router()
 
-const RegisterSchema = z.object({
+export const RegisterSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
     name: z.string().min(2).max(100),
 })
 
-const LoginSchema = z.object({
+export const LoginSchema = z.object({
     email: z.string().email(),
     password: z.string().min(1),
 })
 
-const ForgotPasswordSchema = z.object({
+export const ForgotPasswordSchema = z.object({
     email: z.string().email(),
 })
 
-const ResetPasswordSchema = z.object({
+export const ResetPasswordSchema = z.object({
     token: z.string().min(1),
     password: z.string().min(6),
 })

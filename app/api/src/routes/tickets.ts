@@ -7,7 +7,7 @@ import { ticketLimiter, publicLimiter } from "../middleware/rateLimiter";
 
 export const ticketsRouter = Router()
 
-const CreateTicketSchema = z.object({
+export const CreateTicketSchema = z.object({
     eventId: z.string().min(1),
 })
 
