@@ -87,7 +87,7 @@ authRouter.post('/login', authLimiter, async (req, res) => {
     res.json({ accessToken })
 })
 
-authRouter.post('/refresh', async (req, res) => {
+authRouter.post('/refresh', authLimiter, async (req, res) => {
     const token = req.cookies['refreshToken']
     if (!token) {
         res.status(401).json({ error: 'Refresh token não fornecido' })
@@ -109,7 +109,7 @@ authRouter.post('/refresh', async (req, res) => {
     }
 })
 
-authRouter.post('/logout', authMiddleware, (_req, res) => {
+authRouter.post('/logout', authLimiter, authMiddleware, (_req, res) => {
     res.clearCookie('refreshToken', REFRESH_COOKIE_OPTIONS)
     res.status(204).send()
 })

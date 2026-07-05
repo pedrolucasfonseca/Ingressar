@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authMiddleware, requireRole, requireEventOwner } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
-import { publicLimiter } from "../middleware/rateLimiter";
+import { publicLimiter, authLimiter } from "../middleware/rateLimiter";
 
 export const eventsRouter = Router()
 
@@ -38,7 +38,7 @@ eventsRouter.get('/:id', publicLimiter, async (req, res) => {
     res.json(event)
 })
 
-eventsRouter.post('/', authMiddleware, requireRole('organizer'), async (req: AuthRequest, res) => {
+eventsRouter.post('/', authLimiter, authMiddleware, requireRole('organizer'), async (req: AuthRequest, res) => {
     const parsed = CreateEventSchema.safeParse(req.body)
     if (!parsed.success) {
         res.status(400).json({ error: parsed.error.flatten() })
@@ -53,7 +53,7 @@ eventsRouter.post('/', authMiddleware, requireRole('organizer'), async (req: Aut
     res.status(201).json(event)
 })
 
-eventsRouter.patch('/:id', authMiddleware, requireRole('organizer'), requireEventOwner, async (req: AuthRequest, res) => {
+eventsRouter.patch('/:id', authLimiter, authMiddleware, requireRole('organizer'), requireEventOwner, async (req: AuthRequest, res) => {
     const parsed = UpdateEventSchema.safeParse(req.body)
     if (!parsed.success) {
         res.status(400).json({ error: parsed.error.flatten() })
