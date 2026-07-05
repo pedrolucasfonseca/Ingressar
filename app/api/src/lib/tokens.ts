@@ -1,10 +1,11 @@
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
 import type { Role } from "@prisma/client";
 
 export function signAccessToken(userId: string, role: Role): string {
     const secret = process.env['JWT_SECRET']
     if (!secret) throw new Error('JWT_SECRET não definido')
-    return jwt.sign({ userId, role }, secret, { expiresIn: '15m' })
+    const expiresIn = (process.env['JWT_EXPIRES_IN'] ?? '15m') as NonNullable<SignOptions['expiresIn']>
+    return jwt.sign({ userId, role }, secret, { expiresIn })
 }
 
 export function signRefreshToken(userId: string): string {

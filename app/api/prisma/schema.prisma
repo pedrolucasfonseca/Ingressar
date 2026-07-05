@@ -81,7 +81,7 @@ model Payment {
   id                String        @id @default(cuid())
   ticketId          String        @unique
   ticket            Ticket        @relation(fields: [ticketId], references: [id])
-  providerPaymentId String
+  providerPaymentId String        @unique
   provider          String        @default("stripe")
   status            PaymentStatus @default(pending)
   amountCents       Int

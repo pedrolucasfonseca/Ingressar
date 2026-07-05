@@ -7,7 +7,7 @@ import { publicLimiter, authLimiter } from "../middleware/rateLimiter";
 
 export const eventsRouter = Router()
 
-const CreateEventSchema = z.object({
+export const CreateEventSchema = z.object({
     title: z.string().min(3).max(100),
     description: z.string().min(1),
     price: z.number().int().nonnegative(),
@@ -18,7 +18,7 @@ const CreateEventSchema = z.object({
 
 // Stub mínimo para testar requireEventOwner — v0.4.0 substitui por CRUD
 // completo com transições de status (draft → published → cancelled).
-const UpdateEventSchema = z.object({
+export const UpdateEventSchema = z.object({
     title: z.string().min(3).max(100).optional(),
     description: z.string().min(1).optional(),
     location: z.string().min(3).max(200).optional(),
