@@ -1,0 +1,16 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "rootDir": ".",
+        "types": [
+            "node",
+            "jest"
+        ],
+        "ignoreDeprecations": "6.0"
+    },
+    "exclude": [
+        "node_modules",
+        "dist",
+        "prisma.config.ts"
+    ]
+}

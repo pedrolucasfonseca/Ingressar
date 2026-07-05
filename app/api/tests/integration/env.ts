@@ -1,0 +1,1 @@
+process.env['DATABASE_URL'] = 'postgresql://postgres:testpass@localhost:5433/ticketing_test'
