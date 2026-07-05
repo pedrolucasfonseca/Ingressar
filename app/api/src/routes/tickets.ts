@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authMiddleware, requireRole } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
-import { ticketLimiter } from "../middleware/rateLimiter";
+import { ticketLimiter, publicLimiter } from "../middleware/rateLimiter";
 
 export const ticketsRouter = Router()
 
@@ -37,7 +37,7 @@ ticketsRouter.post('/', ticketLimiter, authMiddleware, requireRole('buyer'), asy
     res.status(201).json(ticket)
 })
 
-ticketsRouter.get('/mine', authMiddleware, async (req: AuthRequest, res) => {
+ticketsRouter.get('/mine', publicLimiter, authMiddleware, async (req: AuthRequest, res) => {
     const userId = req.user?.id
 
     if (!userId) {

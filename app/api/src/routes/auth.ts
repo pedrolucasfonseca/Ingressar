@@ -30,6 +30,7 @@ const ResetPasswordSchema = z.object({
     password: z.string().min(6),
 })
 
+// sameSite: 'strict' impede o navegador de enviar esse cookie em requisições cross-site
 const REFRESH_COOKIE_OPTIONS = {
     httpOnly: true,
     secure: process.env['NODE_ENV'] === 'production',
