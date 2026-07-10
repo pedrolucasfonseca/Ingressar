@@ -41,6 +41,25 @@ export const EventSchema = z.object({
     updatedAt: z.string().datetime(),
 }).meta({ id: 'Event' })
 
+export const PaginatedEventsSchema = z.object({
+    data: z.array(EventSchema),
+    pagination: z.object({
+        page: z.number().int(),
+        limit: z.number().int(),
+        total: z.number().int(),
+        totalPages: z.number().int(),
+        hasNext: z.boolean(),
+        hasPrev: z.boolean(),
+    }),
+}).meta({ id: 'PaginatedEvents' })
+
+export const EventDashboardSchema = z.object({
+    ticketsSold: z.number().int(),
+    revenueCents: z.number().int(),
+    capacityRemaining: z.number().int(),
+    salesByDay: z.array(z.object({ date: z.string(), count: z.number().int() })),
+}).meta({ id: 'EventDashboard' })
+
 export const TicketSchema = z.object({
     id: z.string(),
     userId: z.string(),
