@@ -50,10 +50,11 @@ A API estará disponível em `http://localhost:3001`.
 | POST | `/auth/logout` | JWT | Encerra a sessão (limpa o cookie de refresh token) |
 | POST | `/auth/forgot-password` | — | Gera um token de redefinição de senha (válido por 1h, uso único) |
 | POST | `/auth/reset-password` | — | Redefine a senha a partir de um token válido |
-| GET | `/events` | — | Lista todos os eventos |
+| GET | `/events` | — | Lista eventos publicados, paginado (`page`, `limit`, `sort`, `order`) |
 | GET | `/events/:id` | — | Detalhes de um evento |
 | POST | `/events` | JWT (organizer) | Cria um evento |
-| PATCH | `/events/:id` | JWT (organizer, dono) | Edita título, descrição ou local de um evento |
+| PATCH | `/events/:id` | JWT (organizer, dono) | Edita título, descrição, local ou status de um evento |
+| GET | `/events/:id/dashboard` | JWT (organizer, dono) | Métricas de vendas do evento (ingressos vendidos, receita, capacidade restante, vendas por dia) |
 | POST | `/tickets` | JWT (buyer) | Compra um ingresso |
 | GET | `/tickets/mine` | JWT | Ingressos do usuário logado |
 

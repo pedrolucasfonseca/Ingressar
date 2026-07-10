@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { createDocument } from 'zod-openapi'
 import { RegisterSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema } from '../routes/auth'
-import { CreateEventSchema, UpdateEventSchema } from '../routes/events'
+import { CreateEventSchema, UpdateEventSchema, ListEventsQuerySchema } from '../routes/events'
 import { CreateTicketSchema } from '../routes/tickets'
 import {
     IdEmailSchema,
@@ -10,6 +10,8 @@ import {
     SimpleErrorSchema,
     ValidationErrorSchema,
     EventSchema,
+    PaginatedEventsSchema,
+    EventDashboardSchema,
     TicketSchema,
     TicketWithEventSchema,
 } from './schemas'
@@ -118,10 +120,12 @@ const document = createDocument({
         },
         '/events': {
             get: {
-                summary: 'Lista todos os eventos',
+                summary: 'Lista eventos publicados, paginado',
                 tags: ['events'],
+                requestParams: { query: ListEventsQuerySchema },
                 responses: {
-                    '200': { description: 'OK', ...jsonBody(z.array(EventSchema)) },
+                    '200': { description: 'OK', ...jsonBody(PaginatedEventsSchema) },
+                    '400': validationError,
                 },
             },
             post: {
@@ -149,15 +153,31 @@ const document = createDocument({
                 },
             },
             patch: {
-                summary: 'Edita título, descrição ou local de um evento',
+                summary: 'Edita título, descrição, local ou status de um evento',
                 tags: ['events'],
                 security: [{ bearerAuth: [] }],
-                description: 'Requer role organizer e ser o dono do evento (requireEventOwner)',
+                description:
+                    'Requer role organizer e ser o dono do evento (requireEventOwner). Transições de status válidas: draft → published, draft → cancelled, published → cancelled',
                 requestParams: { path: z.object({ id: z.string() }) },
                 requestBody: jsonBody(UpdateEventSchema),
                 responses: {
                     '200': { description: 'Evento atualizado', ...jsonBody(EventSchema) },
-                    '400': validationError,
+                    '400': simpleError('Body inválido ou transição de status inválida'),
+                    '401': simpleError('Token não fornecido, expirado ou inválido'),
+                    '403': simpleError('Role diferente de organizer, ou evento de outro organizer'),
+                    '404': simpleError('Evento não encontrado'),
+                },
+            },
+        },
+        '/events/{id}/dashboard': {
+            get: {
+                summary: 'Métricas de vendas do evento',
+                tags: ['events'],
+                security: [{ bearerAuth: [] }],
+                description: 'Requer role organizer e ser o dono do evento (requireEventOwner)',
+                requestParams: { path: z.object({ id: z.string() }) },
+                responses: {
+                    '200': { description: 'OK', ...jsonBody(EventDashboardSchema) },
                     '401': simpleError('Token não fornecido, expirado ou inválido'),
                     '403': simpleError('Role diferente de organizer, ou evento de outro organizer'),
                     '404': simpleError('Evento não encontrado'),
