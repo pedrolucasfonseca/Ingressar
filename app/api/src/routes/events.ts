@@ -4,8 +4,9 @@ import type { Event, EventStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { authMiddleware, requireRole, requireEventOwner } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
-import { publicLimiter, authLimiter } from "../middleware/rateLimiter";
+import { publicLimiter, authLimiter, ticketLimiter } from "../middleware/rateLimiter";
 import { isValidStatusTransition } from "../lib/eventStatus";
+import { createCheckoutSession, CheckoutError } from "../lib/checkout";
 
 export const eventsRouter = Router()
 
@@ -134,4 +135,17 @@ eventsRouter.get('/:id/dashboard', authLimiter, authMiddleware, requireRole('org
         .map(([date, count]) => ({ date, count }))
 
     res.json({ ticketsSold, revenueCents, capacityRemaining, salesByDay })
+})
+
+eventsRouter.post('/:id/checkout', ticketLimiter, authMiddleware, requireRole('buyer'), async (req: AuthRequest, res) => {
+    try {
+        const result = await createCheckoutSession(req.params['id'] as string, req.user?.id as string)
+        res.status(201).json(result)
+    } catch (err) {
+        if (err instanceof CheckoutError) {
+            res.status(err.status).json({ error: err.message })
+            return
+        }
+        throw err
+    }
 })
