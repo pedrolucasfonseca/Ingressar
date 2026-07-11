@@ -4,7 +4,7 @@ Plataforma de venda de ingressos para eventos, conectando organizadores e compra
 
 ## Status atual
 
-MVP em andamento — autenticação com roles (organizer/buyer), refresh token (access 15min em memória + refresh cookie httpOnly 7d), RBAC (`requireRole`, `requireEventOwner`), logout, reset de senha, validação de input com Zod e rate limiting aplicados nas rotas públicas e autenticadas. Testes unitários e de integração cobrindo autenticação e autorização. Frontend ainda não implementado; integração com Stripe pendente.
+MVP em andamento — autenticação com roles (organizer/buyer), refresh token (access 15min em memória + refresh cookie httpOnly 7d), RBAC (`requireRole`, `requireEventOwner`), logout, reset de senha, validação de input com Zod e rate limiting aplicados nas rotas públicas e autenticadas. Gestão de eventos com transições de status, paginação e dashboard de vendas. Checkout de ingressos via Stripe (test mode) com validação de capacidade concorrente. Testes unitários e de integração cobrindo autenticação, autorização e checkout. Frontend ainda não implementado; webhook de confirmação de pagamento pendente (v0.6.0).
 
 ## Stack
 
@@ -15,7 +15,7 @@ MVP em andamento — autenticação com roles (organizer/buyer), refresh token (
 | ORM | Prisma 7 (adapter nativo pg) |
 | Autenticação | JWT (access + refresh) + bcrypt |
 | Testes | Jest + Supertest + jest-mock-extended |
-| Pagamentos | Stripe (instalado, integração pendente) |
+| Pagamentos | Stripe Checkout (Elements, test mode) — webhook de confirmação pendente |
 | Infraestrutura | Docker Compose (dev) / Kubernetes (prod) |
 
 ## Rodando localmente
@@ -55,7 +55,7 @@ A API estará disponível em `http://localhost:3001`.
 | POST | `/events` | JWT (organizer) | Cria um evento |
 | PATCH | `/events/:id` | JWT (organizer, dono) | Edita título, descrição, local ou status de um evento |
 | GET | `/events/:id/dashboard` | JWT (organizer, dono) | Métricas de vendas do evento (ingressos vendidos, receita, capacidade restante, vendas por dia) |
-| POST | `/tickets` | JWT (buyer) | Compra um ingresso |
+| POST | `/events/:id/checkout` | JWT (buyer) | Inicia a compra de um ingresso via Stripe Checkout (Elements) — cria ticket `pending` e retorna `{ clientSecret, ticketId }` |
 | GET | `/tickets/mine` | JWT | Ingressos do usuário logado |
 
 Envie o access token nas requisições autenticadas via header `Authorization: Bearer <token>`.
