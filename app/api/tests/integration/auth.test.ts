@@ -1,6 +1,6 @@
-import request from 'supertest'
-import { app } from '../../src/app'
-import { prisma } from '../../src/lib/prisma'
+import request from "supertest";
+import { app } from "../../src/app";
+import { prisma } from "../../src/lib/prisma";
 
 describe('Rotas protegidas', () => {
     it('retorna 401 sem token', async () => {

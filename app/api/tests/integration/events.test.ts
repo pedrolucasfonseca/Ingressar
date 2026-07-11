@@ -1,7 +1,8 @@
-import request from 'supertest'
-import { app } from '../../src/app'
-import { prisma } from '../../src/lib/prisma'
-import { signAccessToken } from '../../src/lib/tokens'
+import request from "supertest";
+import type { Prisma } from "@prisma/client";
+import { app } from "../../src/app";
+import { prisma } from "../../src/lib/prisma";
+import { signAccessToken } from "../../src/lib/tokens";
 
 async function createOrganizer(email: string) {
     const user = await prisma.user.create({
@@ -10,7 +11,7 @@ async function createOrganizer(email: string) {
     return { user, token: signAccessToken(user.id, 'organizer') }
 }
 
-function makeEventData(organizerId: string, overrides: Partial<Parameters<typeof prisma.event.create>[0]['data']> = {}) {
+function makeEventData(organizerId: string, overrides: Partial<Prisma.EventUncheckedCreateInput> = {}): Prisma.EventUncheckedCreateInput {
     return {
         title: 'Show de teste',
         description: 'Desc',
