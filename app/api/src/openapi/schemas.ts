@@ -1,5 +1,5 @@
-import 'zod-openapi'
-import { z } from 'zod'
+import "zod-openapi";
+import { z } from "zod";
 
 // Schemas de resposta, refletem exatamente o que cada rota devolve hoje. Servem só de fonte para o OpenAPI gerado em src/openapi/document.ts.
 
@@ -59,6 +59,11 @@ export const EventDashboardSchema = z.object({
     capacityRemaining: z.number().int(),
     salesByDay: z.array(z.object({ date: z.string(), count: z.number().int() })),
 }).meta({ id: 'EventDashboard' })
+
+export const CheckoutResponseSchema = z.object({
+    clientSecret: z.string(),
+    ticketId: z.string(),
+}).meta({ id: 'CheckoutResponse' })
 
 export const TicketSchema = z.object({
     id: z.string(),

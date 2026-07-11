@@ -1,8 +1,7 @@
-import { z } from 'zod'
-import { createDocument } from 'zod-openapi'
-import { RegisterSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema } from '../routes/auth'
-import { CreateEventSchema, UpdateEventSchema, ListEventsQuerySchema } from '../routes/events'
-import { CreateTicketSchema } from '../routes/tickets'
+import { z } from "zod";
+import { createDocument } from "zod-openapi";
+import { RegisterSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema } from "../routes/auth";
+import { CreateEventSchema, UpdateEventSchema, ListEventsQuerySchema } from "../routes/events";
 import {
     IdEmailSchema,
     AccessTokenSchema,
@@ -12,9 +11,9 @@ import {
     EventSchema,
     PaginatedEventsSchema,
     EventDashboardSchema,
-    TicketSchema,
+    CheckoutResponseSchema,
     TicketWithEventSchema,
-} from './schemas'
+} from "./schemas";
 
 const bearerAuth = { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } as const
 
@@ -184,18 +183,21 @@ const document = createDocument({
                 },
             },
         },
-        '/tickets': {
+        '/events/{id}/checkout': {
             post: {
-                summary: 'Compra um ingresso',
-                tags: ['tickets'],
+                summary: 'Inicia a compra de um ingresso via Stripe Checkout (Elements)',
+                tags: ['events', 'tickets'],
                 security: [{ bearerAuth: [] }],
-                description: 'Requer role buyer. Sem verificação de capacidade ainda (ver roadmap v0.5.0)',
-                requestBody: jsonBody(CreateTicketSchema),
+                description:
+                    'Requer role buyer. Cria um ticket pending e uma Stripe Checkout Session (idempotente por ticket.id) dentro de uma transação que trava o evento (FOR UPDATE) para serializar checkouts concorrentes e validar capacidade',
+                requestParams: { path: z.object({ id: z.string() }) },
                 responses: {
-                    '201': { description: 'Ticket criado', ...jsonBody(TicketSchema) },
-                    '400': validationError,
-                    '401': simpleError('Não autenticado, token ausente/inválido'),
+                    '201': { description: 'Checkout iniciado', ...jsonBody(CheckoutResponseSchema) },
+                    '400': simpleError('Evento não está publicado ou já ocorreu'),
+                    '401': simpleError('Token não fornecido, expirado ou inválido'),
+                    '403': simpleError('Role diferente de buyer'),
                     '404': simpleError('Evento não encontrado'),
+                    '409': simpleError('Evento esgotado'),
                 },
             },
         },

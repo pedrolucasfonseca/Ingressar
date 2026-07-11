@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Ingressar API",
-    "version": "0.3.5",
+    "version": "0.5.0",
     "description": "Gerado a partir dos schemas Zod já usados nas rotas (src/routes/*.ts) — reflete o estado real do código, não o roadmap. Rotas montadas sem prefixo (ver src/app.ts); o prefixo /api só existe a partir do Ingress em produção (v0.5.9+)."
   },
   "servers": [
@@ -738,10 +738,11 @@
         }
       }
     },
-    "/tickets": {
+    "/events/{id}/checkout": {
       "post": {
-        "summary": "Compra um ingresso",
+        "summary": "Inicia a compra de um ingresso via Stripe Checkout (Elements)",
         "tags": [
+          "events",
           "tickets"
         ],
         "security": [
@@ -749,48 +750,50 @@
             "bearerAuth": []
           }
         ],
-        "description": "Requer role buyer. Sem verificação de capacidade ainda (ver roadmap v0.5.0)",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "eventId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "eventId"
-                ]
-              }
-            }
+        "description": "Requer role buyer. Cria o ticket como pending e uma Checkout Session (ui_mode: elements) com o preço do evento; o frontend confirma o pagamento com o clientSecret retornado. Sem corpo de request.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
           }
-        },
+        ],
         "responses": {
           "201": {
-            "description": "Ticket criado",
+            "description": "Checkout iniciado",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Ticket"
+                  "$ref": "#/components/schemas/CheckoutResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Body inválido",
+            "description": "Evento não está disponível para compra ou já ocorreu",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ValidationError"
+                  "$ref": "#/components/schemas/SimpleError"
                 }
               }
             }
           },
           "401": {
-            "description": "Não autenticado, token ausente/inválido",
+            "description": "Token não fornecido, expirado ou inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role diferente de buyer",
             "content": {
               "application/json": {
                 "schema": {
@@ -801,6 +804,16 @@
           },
           "404": {
             "description": "Evento não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Evento esgotado",
             "content": {
               "application/json": {
                 "schema": {
@@ -1116,49 +1129,19 @@
         ],
         "additionalProperties": false
       },
-      "Ticket": {
+      "CheckoutResponse": {
         "type": "object",
         "properties": {
-          "id": {
+          "clientSecret": {
             "type": "string"
           },
-          "userId": {
+          "ticketId": {
             "type": "string"
-          },
-          "eventId": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "confirmed",
-              "cancelled"
-            ]
-          },
-          "qrCode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
           }
         },
         "required": [
-          "id",
-          "userId",
-          "eventId",
-          "status",
-          "qrCode",
-          "createdAt"
+          "clientSecret",
+          "ticketId"
         ],
         "additionalProperties": false
       },

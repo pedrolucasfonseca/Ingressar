@@ -1,6 +1,8 @@
 # Documentação mantida fora do repositório
 docs/
 
+.claude/
+
 .env
 *.env
 
