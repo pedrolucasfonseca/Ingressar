@@ -1,12 +1,33 @@
 import { Router } from "express";
 import { z } from "zod";
+import { escape } from "html-escaper";
 import type { Event, EventStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { authMiddleware, requireRole, requireEventOwner } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import { publicLimiter, authLimiter, ticketLimiter } from "../middleware/rateLimiter";
 import { isValidStatusTransition } from "../lib/eventStatus";
-import { createCheckoutSession, CheckoutError } from "../lib/checkout";
+import { createCheckoutSession } from "../lib/checkout";
+import { createBannerUploadUrl } from "../lib/storage";
+
+const DEFAULT_BANNER_URL = 'https://ingressar.app/default-banner.png'
+
+function canonicalUrl(eventId: string): string {
+    return `https://ingressar.app/events/${eventId}`
+}
+
+function renderPreviewHtml(event: Event): string {
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta property="og:title" content="${escape(event.title)}" />
+  <meta property="og:description" content="${escape(event.description.slice(0, 200))}" />
+  <meta property="og:image" content="${escape(event.bannerUrl ?? DEFAULT_BANNER_URL)}" />
+  <meta property="og:url" content="${escape(canonicalUrl(event.id))}" />
+</head>
+<body></body>
+</html>`
+}
 
 export const eventsRouter = Router()
 
@@ -24,6 +45,11 @@ export const UpdateEventSchema = z.object({
     description: z.string().min(1).optional(),
     location: z.string().min(3).max(200).optional(),
     status: z.enum(['draft', 'published', 'cancelled', 'finished']).optional(),
+    bannerUrl: z.string().url().optional(),
+})
+
+export const BannerUploadUrlRequestSchema = z.object({
+    contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
 })
 
 const SORT_FIELDS = { date: 'date', price: 'priceCents', createdAt: 'createdAt' } as const
@@ -61,6 +87,14 @@ eventsRouter.get('/', publicLimiter, async (req, res) => {
     })
 })
 
+eventsRouter.get('/mine', authLimiter, authMiddleware, requireRole('organizer'), async (req: AuthRequest, res) => {
+    const events = await prisma.event.findMany({
+        where: { organizerId: req.user?.id as string },
+        orderBy: { createdAt: 'desc' },
+    })
+    res.json(events)
+})
+
 eventsRouter.get('/:id', publicLimiter, async (req, res) => {
     const event = await prisma.event.findUnique({ where: { id: req.params['id'] as string } })
     if (!event) {
@@ -92,7 +126,7 @@ eventsRouter.patch('/:id', authLimiter, authMiddleware, requireRole('organizer')
         return
     }
 
-    const { title, description, location, status } = parsed.data
+    const { title, description, location, status, bannerUrl } = parsed.data
     if (status !== undefined && !isValidStatusTransition(req.event?.status as EventStatus, status)) {
         res.status(400).json({ error: `Transição de status inválida: ${req.event?.status} → ${status}` })
         return
@@ -105,10 +139,31 @@ eventsRouter.patch('/:id', authLimiter, authMiddleware, requireRole('organizer')
             ...(description !== undefined && { description }),
             ...(location !== undefined && { location }),
             ...(status !== undefined && { status }),
+            ...(bannerUrl !== undefined && { bannerUrl }),
         },
     })
 
     res.json(event)
+})
+
+eventsRouter.post('/:id/banner-upload-url', authLimiter, authMiddleware, requireRole('organizer'), requireEventOwner, async (req: AuthRequest, res) => {
+    const parsed = BannerUploadUrlRequestSchema.safeParse(req.body)
+    if (!parsed.success) {
+        res.status(400).json({ error: parsed.error.flatten() })
+        return
+    }
+
+    const result = await createBannerUploadUrl(req.event?.id as string, parsed.data.contentType)
+    res.json(result)
+})
+
+eventsRouter.get('/:id/preview', publicLimiter, async (req, res) => {
+    const event = await prisma.event.findUnique({ where: { id: req.params['id'] as string } })
+    if (!event) {
+        res.status(404).json({ error: 'Evento não encontrado' })
+        return
+    }
+    res.type('html').send(renderPreviewHtml(event))
 })
 
 eventsRouter.get('/:id/dashboard', authLimiter, authMiddleware, requireRole('organizer'), requireEventOwner, async (req: AuthRequest, res) => {
@@ -116,14 +171,16 @@ eventsRouter.get('/:id/dashboard', authLimiter, authMiddleware, requireRole('org
 
     const tickets = await prisma.ticket.findMany({
         where: { eventId: event.id, status: { not: 'cancelled' } },
-        select: { createdAt: true },
+        select: { createdAt: true, status: true },
     })
 
     const ticketsSold = tickets.length
-    // Sem integração de pagamento ainda (v0.5.0/v0.6.0): cada ticket não-cancelado
-    // vale o preço do evento, não há valor efetivamente cobrado a somar da Payment.
+    // Sem integração de pagamento: cada ticket não-cancelado vale o preço do evento, não há valor efetivamente cobrado a somar da Payment.
     const revenueCents = ticketsSold * event.priceCents
     const capacityRemaining = event.capacity - ticketsSold
+
+    const confirmedCount = tickets.filter((t) => t.status === 'confirmed').length
+    const confirmationRate = ticketsSold > 0 ? confirmedCount / ticketsSold : 0
 
     const countByDay = new Map<string, number>()
     for (const ticket of tickets) {
@@ -134,18 +191,10 @@ eventsRouter.get('/:id/dashboard', authLimiter, authMiddleware, requireRole('org
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, count]) => ({ date, count }))
 
-    res.json({ ticketsSold, revenueCents, capacityRemaining, salesByDay })
+    res.json({ ticketsSold, revenueCents, capacityRemaining, confirmationRate, salesByDay })
 })
 
 eventsRouter.post('/:id/checkout', ticketLimiter, authMiddleware, requireRole('buyer'), async (req: AuthRequest, res) => {
-    try {
-        const result = await createCheckoutSession(req.params['id'] as string, req.user?.id as string)
-        res.status(201).json(result)
-    } catch (err) {
-        if (err instanceof CheckoutError) {
-            res.status(err.status).json({ error: err.message })
-            return
-        }
-        throw err
-    }
+    const result = await createCheckoutSession(req.params['id'] as string, req.user?.id as string)
+    res.status(201).json(result)
 })

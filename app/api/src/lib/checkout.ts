@@ -1,12 +1,9 @@
 import type { Event } from "@prisma/client";
 import { prisma } from "./prisma";
 import { stripe } from "./stripe";
+import { AppError } from "./errors";
 
-export class CheckoutError extends Error {
-    constructor(public status: number, message: string) {
-        super(message)
-    }
-}
+export class CheckoutError extends AppError {}
 
 export async function createCheckoutSession(eventId: string, userId: string): Promise<{ clientSecret: string; ticketId: string }> {
     const { ticket, event } = await prisma.$transaction(async (tx) => {

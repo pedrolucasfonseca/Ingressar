@@ -21,3 +21,17 @@ ticketsRouter.get('/mine', publicLimiter, authMiddleware, async (req: AuthReques
 
     res.json(tickets)
 })
+
+ticketsRouter.get('/:id', publicLimiter, authMiddleware, async (req: AuthRequest, res) => {
+    const ticket = await prisma.ticket.findUnique({
+        where: { id: req.params['id'] as string },
+        include: { event: true },
+    })
+
+    if (!ticket || ticket.userId !== req.user?.id) {
+        res.status(404).json({ error: 'Ingresso não encontrado' })
+        return
+    }
+
+    res.json(ticket)
+})
