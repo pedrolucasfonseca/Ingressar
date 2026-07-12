@@ -51,6 +51,7 @@ model Event {
   date        DateTime
   location    String
   capacity    Int
+  bannerUrl   String?
   tickets     Ticket[]
   createdAt   DateTime    @default(now())
   status      EventStatus @default(draft)

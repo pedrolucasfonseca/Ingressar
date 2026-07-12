@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Ingressar API",
-    "version": "0.5.0",
-    "description": "Gerado a partir dos schemas Zod já usados nas rotas (src/routes/*.ts) — reflete o estado real do código, não o roadmap. Rotas montadas sem prefixo (ver src/app.ts); o prefixo /api só existe a partir do Ingress em produção (v0.5.9+)."
+    "version": "0.6.0",
+    "description": "Gerado a partir dos schemas Zod já usados nas rotas (src/routes/*.ts) — reflete o estado real do código, não o roadmap. Rotas montadas sem prefixo (ver src/app.ts); o prefixo /api só existe a partir do Ingress em produção (v0.6.9+)."
   },
   "servers": [
     {
@@ -64,6 +64,14 @@
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 100
+                  },
+                  "role": {
+                    "default": "buyer",
+                    "type": "string",
+                    "enum": [
+                      "organizer",
+                      "buyer"
+                    ]
                   }
                 },
                 "required": [
@@ -524,6 +532,55 @@
         }
       }
     },
+    "/events/mine": {
+      "get": {
+        "summary": "Eventos do organizador logado, em qualquer status",
+        "tags": [
+          "events"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requer role organizer. Diferente de GET /events (que só lista published) — usado pelo organizer pra gerenciar os próprios eventos, incluindo draft/cancelled/finished",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token não fornecido, expirado ou inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role diferente de organizer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{id}": {
       "get": {
         "summary": "Detalhes de um evento",
@@ -564,7 +621,7 @@
         }
       },
       "patch": {
-        "summary": "Edita título, descrição, local ou status de um evento",
+        "summary": "Edita título, descrição, local, status ou banner de um evento",
         "tags": [
           "events"
         ],
@@ -573,7 +630,7 @@
             "bearerAuth": []
           }
         ],
-        "description": "Requer role organizer e ser o dono do evento (requireEventOwner). Transições de status válidas: draft → published, draft → cancelled, published → cancelled",
+        "description": "Requer role organizer e ser o dono do evento (requireEventOwner). Transições de status válidas: draft → published, draft → cancelled, published → cancelled. bannerUrl é gravado após confirmação do upload via POST /events/{id}/banner-upload-url",
         "parameters": [
           {
             "in": "path",
@@ -612,6 +669,10 @@
                       "cancelled",
                       "finished"
                     ]
+                  },
+                  "bannerUrl": {
+                    "type": "string",
+                    "format": "uri"
                   }
                 }
               }
@@ -655,6 +716,145 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/banner-upload-url": {
+      "post": {
+        "summary": "Gera uma presigned URL para upload direto do banner no Object Storage",
+        "tags": [
+          "events"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requer role organizer e ser o dono do evento (requireEventOwner). URL expira em 5 minutos; Content-Type restrito a image/jpeg, image/png, image/webp. O browser faz o PUT direto no Object Storage; a API só grava bannerUrl no Event depois, via PATCH /events/{id}",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contentType": {
+                    "type": "string",
+                    "enum": [
+                      "image/jpeg",
+                      "image/png",
+                      "image/webp"
+                    ]
+                  }
+                },
+                "required": [
+                  "contentType"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerUploadUrl"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Content-Type não permitido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token não fornecido, expirado ou inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role diferente de organizer, ou evento de outro organizer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/preview": {
+      "get": {
+        "summary": "HTML mínimo com OG meta tags do evento, para crawlers de redes sociais",
+        "tags": [
+          "events"
+        ],
+        "description": "Servido atrás de um proxy_pass do nginx do frontend, só para User-Agents de crawlers conhecidos (facebookexternalhit, Twitterbot, WhatsApp, TelegramBot, Slackbot, LinkedInBot) — usuários reais recebem a SPA. Campos controlados pelo organizer (title, description) são HTML-escapados",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTML com og:title/og:description/og:image/og:url",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -750,7 +950,7 @@
             "bearerAuth": []
           }
         ],
-        "description": "Requer role buyer. Cria o ticket como pending e uma Checkout Session (ui_mode: elements) com o preço do evento; o frontend confirma o pagamento com o clientSecret retornado. Sem corpo de request.",
+        "description": "Requer role buyer. Cria um ticket pending e uma Stripe Checkout Session (idempotente por ticket.id) dentro de uma transação que trava o evento (FOR UPDATE) para serializar checkouts concorrentes e validar capacidade",
         "parameters": [
           {
             "in": "path",
@@ -773,7 +973,7 @@
             }
           },
           "400": {
-            "description": "Evento não está disponível para compra ou já ocorreu",
+            "description": "Evento não está publicado ou já ocorreu",
             "content": {
               "application/json": {
                 "schema": {
@@ -852,6 +1052,62 @@
           },
           "401": {
             "description": "Não autenticado, token ausente/inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/{id}": {
+      "get": {
+        "summary": "Detalhes de um ingresso do usuário logado",
+        "tags": [
+          "tickets"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Retorna 404 (não 403) se o ingresso pertence a outro usuário — evita confirmar a um usuário não autorizado que o id existe",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketWithEvent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado, token ausente/inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ingresso não encontrado",
             "content": {
               "application/json": {
                 "schema": {
@@ -1043,6 +1299,17 @@
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
+          "bannerUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "organizerId": {
             "type": "string"
           },
@@ -1074,10 +1341,29 @@
           "date",
           "location",
           "capacity",
+          "bannerUrl",
           "organizerId",
           "status",
           "createdAt",
           "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "BannerUploadUrl": {
+        "type": "object",
+        "properties": {
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "publicUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "uploadUrl",
+          "publicUrl"
         ],
         "additionalProperties": false
       },
@@ -1098,6 +1384,11 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
+          },
+          "confirmationRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
           },
           "salesByDay": {
             "type": "array",
@@ -1125,6 +1416,7 @@
           "ticketsSold",
           "revenueCents",
           "capacityRemaining",
+          "confirmationRate",
           "salesByDay"
         ],
         "additionalProperties": false

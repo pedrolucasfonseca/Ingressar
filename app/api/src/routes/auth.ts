@@ -14,6 +14,7 @@ export const RegisterSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
     name: z.string().min(2).max(100),
+    role: z.enum(['organizer', 'buyer']).default('buyer'),
 })
 
 export const LoginSchema = z.object({
@@ -45,7 +46,7 @@ authRouter.post('/register', authLimiter, async (req, res) => {
         res.status(400).json({ error: parsed.error.flatten() })
         return
     }
-    const { email, password, name } = parsed.data
+    const { email, password, name, role } = parsed.data
 
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
@@ -54,7 +55,7 @@ authRouter.post('/register', authLimiter, async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 10)
-    const user = await prisma.user.create({ data: { email, name, passwordHash: hashed } })
+    const user = await prisma.user.create({ data: { email, name, passwordHash: hashed, role } })
 
     res.status(201).json({ id: user.id, email: user.email })
 })
@@ -69,8 +70,8 @@ authRouter.post('/login', authLimiter, async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user) {
-        // Mesma mensagem de erro para email inexistente e senha errada —
-        // evita enumeração de usuários cadastrados.
+        // Mesma mensagem de erro para email inexistente e senha errada.
+        // Evita enumeração de usuários cadastrados.
         res.status(401).json({ error: 'Credenciais inválidas' })
         return
     }

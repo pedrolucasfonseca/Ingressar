@@ -35,11 +35,17 @@ export const EventSchema = z.object({
     date: z.string().datetime(),
     location: z.string(),
     capacity: z.number().int(),
+    bannerUrl: z.string().url().nullable(),
     organizerId: z.string(),
     status: z.enum(['draft', 'published', 'cancelled', 'finished']),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
 }).meta({ id: 'Event' })
+
+export const BannerUploadUrlSchema = z.object({
+    uploadUrl: z.string().url(),
+    publicUrl: z.string().url(),
+}).meta({ id: 'BannerUploadUrl' })
 
 export const PaginatedEventsSchema = z.object({
     data: z.array(EventSchema),
@@ -57,6 +63,7 @@ export const EventDashboardSchema = z.object({
     ticketsSold: z.number().int(),
     revenueCents: z.number().int(),
     capacityRemaining: z.number().int(),
+    confirmationRate: z.number().min(0).max(1),
     salesByDay: z.array(z.object({ date: z.string(), count: z.number().int() })),
 }).meta({ id: 'EventDashboard' })
 

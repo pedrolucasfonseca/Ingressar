@@ -1,30 +1,10 @@
 import request from "supertest";
-import type { Prisma } from "@prisma/client";
 import { app } from "../../src/app";
 import { prisma } from "../../src/lib/prisma";
 import { signAccessToken } from "../../src/lib/tokens";
+import { createOrganizer, makeEventData } from "../factories";
 
-async function createOrganizer(email: string) {
-    const user = await prisma.user.create({
-        data: { email, name: 'Organizer', passwordHash: 'x', role: 'organizer' },
-    })
-    return { user, token: signAccessToken(user.id, 'organizer') }
-}
-
-function makeEventData(organizerId: string, overrides: Partial<Prisma.EventUncheckedCreateInput> = {}): Prisma.EventUncheckedCreateInput {
-    return {
-        title: 'Show de teste',
-        description: 'Desc',
-        priceCents: 1000,
-        date: new Date('2030-01-01T20:00:00Z'),
-        location: 'SP',
-        capacity: 10,
-        organizerId,
-        ...overrides,
-    }
-}
-
-describe('GET /events — paginação', () => {
+describe('GET /events (paginação)', () => {
     it('lista apenas eventos published, respeitando page/limit', async () => {
         const { user } = await createOrganizer('org-pag@test.com')
 
@@ -67,12 +47,27 @@ describe('GET /events/:id/dashboard', () => {
             ticketsSold: 2,
             revenueCents: 10000,
             capacityRemaining: 8,
+            confirmationRate: 0.5,
         })
         expect(Array.isArray(res.body.salesByDay)).toBe(true)
     })
+
+    it('confirmationRate é 0 quando não há tickets', async () => {
+        const { user, token } = await createOrganizer('org-dash-empty@test.com')
+        const event = await prisma.event.create({
+            data: makeEventData(user.id, { status: 'published' }),
+        })
+
+        const res = await request(app)
+            .get(`/events/${event.id}/dashboard`)
+            .set('Authorization', `Bearer ${token}`)
+
+        expect(res.status).toBe(200)
+        expect(res.body.confirmationRate).toBe(0)
+    })
 })
 
-describe('PATCH /events/:id — transições de status', () => {
+describe('PATCH /events/:id (transições de status)', () => {
     it('aplica uma transição válida', async () => {
         const { user, token } = await createOrganizer('org-status-ok@test.com')
         const event = await prisma.event.create({ data: makeEventData(user.id, { status: 'draft' }) })
@@ -108,6 +103,31 @@ describe('PATCH /events/:id — transições de status', () => {
             .set('Authorization', `Bearer ${otherToken}`)
             .send({ status: 'published' })
 
+        expect(res.status).toBe(403)
+    })
+})
+
+describe('GET /events/mine', () => {
+    it('lista os eventos do organizer logado em qualquer status', async () => {
+        const { user, token } = await createOrganizer('org-mine@test.com')
+        const { token: otherToken } = await createOrganizer('org-mine-other@test.com')
+        await prisma.event.create({ data: makeEventData(user.id, { title: 'Draft', status: 'draft' }) })
+        await prisma.event.create({ data: makeEventData(user.id, { title: 'Pub', status: 'published' }) })
+
+        const res = await request(app).get('/events/mine').set('Authorization', `Bearer ${token}`)
+
+        expect(res.status).toBe(200)
+        expect(res.body).toHaveLength(2)
+
+        const otherRes = await request(app).get('/events/mine').set('Authorization', `Bearer ${otherToken}`)
+        expect(otherRes.body).toHaveLength(0)
+    })
+
+    it('retorna 403 para role buyer', async () => {
+        const buyer = await prisma.user.create({ data: { email: 'buyer-mine@test.com', name: 'Buyer', passwordHash: 'x', role: 'buyer' } })
+        const token = signAccessToken(buyer.id, 'buyer')
+
+        const res = await request(app).get('/events/mine').set('Authorization', `Bearer ${token}`)
         expect(res.status).toBe(403)
     })
 })
