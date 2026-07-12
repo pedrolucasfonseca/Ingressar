@@ -1,29 +1,7 @@
 import request from "supertest";
-import type { Prisma } from "@prisma/client";
 import { app } from "../../src/app";
 import { prisma } from "../../src/lib/prisma";
-import { signAccessToken } from "../../src/lib/tokens";
-
-async function createUser(email: string, role: 'organizer' | 'buyer') {
-    const user = await prisma.user.create({
-        data: { email, name: 'User', passwordHash: 'x', role },
-    })
-    return { user, token: signAccessToken(user.id, role) }
-}
-
-function makeEventData(organizerId: string, overrides: Partial<Prisma.EventUncheckedCreateInput> = {}): Prisma.EventUncheckedCreateInput {
-    return {
-        title: 'Show de teste',
-        description: 'Desc',
-        priceCents: 5000,
-        date: new Date('2099-01-01T20:00:00Z'),
-        location: 'SP',
-        capacity: 1,
-        organizerId,
-        status: 'published',
-        ...overrides,
-    }
-}
+import { createUser, makeEventData } from "../factories";
 
 describe('POST /events/:id/checkout', () => {
     it('retorna 403 se quem tenta comprar não é buyer', async () => {
@@ -52,5 +30,23 @@ describe('POST /events/:id/checkout', () => {
 
         const ticket = await prisma.ticket.findUnique({ where: { id: res.body.ticketId } })
         expect(ticket).toMatchObject({ userId: buyer.id, eventId: event.id, status: 'pending' })
+    })
+
+    it('serializa checkouts concorrentes no último ingresso: só um 201, o outro 409', async () => {
+        const { user: organizer } = await createUser('org-race@test.com', 'organizer')
+        const { token: buyer1Token } = await createUser('buyer-race-1@test.com', 'buyer')
+        const { token: buyer2Token } = await createUser('buyer-race-2@test.com', 'buyer')
+        const event = await prisma.event.create({ data: makeEventData(organizer.id, { capacity: 1 }) })
+
+        const [res1, res2] = await Promise.all([
+            request(app).post(`/events/${event.id}/checkout`).set('Authorization', `Bearer ${buyer1Token}`),
+            request(app).post(`/events/${event.id}/checkout`).set('Authorization', `Bearer ${buyer2Token}`),
+        ])
+
+        const statuses = [res1.status, res2.status].sort()
+        expect(statuses).toEqual([201, 409])
+
+        const tickets = await prisma.ticket.findMany({ where: { eventId: event.id } })
+        expect(tickets).toHaveLength(1)
     })
 })

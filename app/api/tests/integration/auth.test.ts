@@ -41,3 +41,22 @@ describe('POST /auth/reset-password', () => {
         expect(res.status).toBe(400)
     })
 })
+
+describe('POST /auth/register (role)', () => {
+    it('cria buyer por padrão quando role não é enviado', async () => {
+        await request(app).post('/auth/register').send({
+            email: 'default-role@test.com', password: '123456', name: 'Default',
+        })
+        const user = await prisma.user.findUnique({ where: { email: 'default-role@test.com' } })
+        expect(user?.role).toBe('buyer')
+    })
+
+    it('cria organizer quando role: organizer é enviado', async () => {
+        const res = await request(app).post('/auth/register').send({
+            email: 'self-organizer@test.com', password: '123456', name: 'Organizador', role: 'organizer',
+        })
+        expect(res.status).toBe(201)
+        const user = await prisma.user.findUnique({ where: { email: 'self-organizer@test.com' } })
+        expect(user?.role).toBe('organizer')
+    })
+})
