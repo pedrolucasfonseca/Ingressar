@@ -24,8 +24,9 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     }
 
     const secret = process.env['JWT_SECRET']
-    // Lança 500 em vez de retornar 401: ausência do secret é erro de configuração,
-    // não de autenticação — deve falhar alto para ser detectado imediatamente.
+    // Lança 500 em vez de retornar 401: ausência do secret é erro de
+    // configuração, não de autenticação. Deve falhar alto para ser detectado
+    // imediatamente.
     if (!secret) throw new Error('JWT_SECRET não definido')
 
     try {
