@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Archivo Black", "Arial Black", sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-paper: #ede6d8;
+  --color-paper-dark: #1a1712;
+  --color-ink: #201c16;
+  --color-ink-dark: #ede6d8;
+  --color-stamp: #9e2f22;
+  --color-stamp-dark: #e0574a;
+  --color-stub: #2f6b4f;
+  --color-stub-dark: #4e9d78;
+  --color-gold: #c98a2c;
+  --color-gold-dark: #e0a545;
+  --color-perf: #a79c87;
+  --color-perf-dark: #55503f;
+  --color-card: #f7f2e8;
+  --color-card-dark: #241f17;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-perf);
+  }
+
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body {
+      background: var(--color-paper-dark);
+      color: var(--color-ink-dark);
+    }
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-stamp);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .ticket-card {
+    background: var(--color-card);
+    border: 2px solid var(--color-ink);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .ticket-card {
+      background: var(--color-card-dark);
+      border-color: var(--color-ink-dark);
+    }
+  }
+
+  .perf-line {
+    position: relative;
+    height: 0;
+    border-top: 2px dashed var(--color-perf);
+  }
+
+  .perf-line::before,
+  .perf-line::after {
+    content: '';
+    position: absolute;
+    top: -7px;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--color-paper);
+    border: 2px solid var(--color-ink);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .perf-line::before,
+    .perf-line::after {
+      background: var(--color-paper-dark);
+      border-color: var(--color-ink-dark);
+    }
+  }
+
+  .perf-line::before {
+    left: -9px;
+  }
+
+  .perf-line::after {
+    right: -9px;
+  }
+
+  .stamp-pop {
+    animation: stamp-pop 320ms cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stamp-pop {
+      animation: none;
+    }
+  }
+
+  .hover-lift {
+    transition: transform 160ms ease-out, box-shadow 160ms ease-out;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 0 var(--color-ink);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .hover-lift:hover {
+      box-shadow: 0 5px 0 var(--color-ink-dark);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hover-lift {
+      transition: none;
+    }
+
+    .hover-lift:hover {
+      transform: none;
+    }
+  }
+
+  .fade-in-up {
+    animation: fade-in-up 420ms ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in-up {
+      animation: none;
+    }
+  }
+}
+
+@keyframes stamp-pop {
+  0% { opacity: 0; transform: scale(1.8) rotate(-16deg); }
+  60% { opacity: 1; transform: scale(0.94) rotate(-8deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-8deg); }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
